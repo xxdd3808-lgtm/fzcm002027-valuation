@@ -6,7 +6,7 @@ from datetime import datetime
 # ==========================================
 # 页面基础配置 (适合手机阅读的居中排版)
 # ==========================================
-st.set_page_config(page_title="分众传媒估值", page_icon="📈", layout="centered")
+st.set_page_config(page_title="分众传媒估值模型", page_icon="📈", layout="centered")
 
 # ==========================================
 # 数据获取与缓存模块
@@ -39,8 +39,8 @@ def calculate_valuation(df_10_years, total_shares):
     avg_np = df_10_years['归母净利润(亿元)'].mean()
     avg_ng = df_10_years['扣非净利润(亿元)'].mean()
     
-    val_np = {"合理估值": avg_np * 25, "理想买点": avg_np * 25 * 0.7, "一年卖点": avg_np * 25 * 1.5}
-    val_ng = {"合理估值": avg_ng * 25, "理想买点": avg_ng * 25 * 0.7, "一年卖点": avg_ng * 25 * 1.5}
+    val_np = {"合理估值": avg_np * 25, "理想买点": avg_np * 25 * 0.7, "卖点": avg_np * 25 * 1.5}
+    val_ng = {"合理估值": avg_ng * 25, "理想买点": avg_ng * 25 * 0.7, "卖点": avg_ng * 25 * 1.5}
     
     price_np = {k: v / total_shares for k, v in val_np.items()}
     price_ng = {k: v / total_shares for k, v in val_ng.items()}
@@ -48,58 +48,64 @@ def calculate_valuation(df_10_years, total_shares):
     return avg_np, avg_ng, val_np, val_ng, price_np, price_ng
 
 # ==========================================
-# 网页 UI 布局
+# 1. 网页头部信息与刷新
 # ==========================================
 st.title("🎯 分众传媒 (002027) 估值看板")
 
-# 刷新按钮 (占满整行，方便手机点击)
 if st.button("🔄 刷新最新财报与股本数据", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-# 加载数据
 total_shares, fetch_time = get_stock_info()
 df_history = get_financial_data()
 df_current_10 = df_history.head(10).copy()
 current_latest_year = int(df_current_10['年份'].max())
 current_oldest_year = int(df_current_10['年份'].min())
 
-st.caption(f"📊 当前总股本: **{total_shares} 亿股** | 更新于: {fetch_time}")
+st.caption(f"📊 当前总股本: **{total_shares} 亿股** | 数据抓取时间: {fetch_time}")
 st.divider()
 
 # 计算基础估值
 avg_np, avg_ng, val_np, val_ng, p_np, p_ng = calculate_valuation(df_current_10, total_shares)
 
-# --- 估值展示区 (上下排列，手机友好) ---
-st.markdown(f"### 🛡️ 方案一：扣非净利润估值 (更严谨)")
-st.markdown(f"*基于 **{current_oldest_year}-{current_latest_year}** 十年平均扣非净利润: **{avg_ng:.2f} 亿元***")
+# ==========================================
+# 2. 当前静态估值展示区
+# ==========================================
+st.header(f"📈 基于 {current_oldest_year}-{current_latest_year} 财报估值")
+
+# --- 扣非净利润估值 (方案一) ---
+st.markdown(f"### 🛡️ 方案一：扣非净利润体系 (推荐)")
+st.markdown(f"> **十年平均扣非净利润：{avg_ng:.2f} 亿元**")
 c1, c2, c3 = st.columns(3)
-c1.metric("理想买点", f"{p_ng['理想买点']:.2f} 元")
-c2.metric("合理估值", f"{p_ng['合理估值']:.2f} 元")
-c3.metric("一年卖点", f"{p_ng['一年卖点']:.2f} 元")
+c1.metric(f"理想买点 (市值:{val_ng['理想买点']:.0f}亿)", f"{p_ng['理想买点']:.2f} 元")
+c2.metric(f"合理估值 (市值:{val_ng['合理估值']:.0f}亿)", f"{p_ng['合理估值']:.2f} 元")
+c3.metric(f"一年卖点 (市值:{val_ng['卖点']:.0f}亿)", f"{p_ng['卖点']:.2f} 元")
 
-st.write("") # 留白
+st.write("") # 留白换行
 
-st.markdown(f"### 🟢 方案二：归母净利润估值")
-st.markdown(f"*基于 **{current_oldest_year}-{current_latest_year}** 十年平均归母净利润: **{avg_np:.2f} 亿元***")
+# --- 归母净利润估值 (方案二) ---
+st.markdown(f"### 🟢 方案二：归母净利润体系")
+st.markdown(f"> **十年平均归母净利润：{avg_np:.2f} 亿元**")
 c4, c5, c6 = st.columns(3)
-c4.metric("理想买点", f"{p_np['理想买点']:.2f} 元")
-c5.metric("合理估值", f"{p_np['合理估值']:.2f} 元")
-c6.metric("一年卖点", f"{p_np['一年卖点']:.2f} 元")
+c4.metric(f"理想买点 (市值:{val_np['理想买点']:.0f}亿)", f"{p_np['理想买点']:.2f} 元")
+c5.metric(f"合理估值 (市值:{val_np['合理估值']:.0f}亿)", f"{p_np['合理估值']:.2f} 元")
+c6.metric(f"一年卖点 (市值:{val_np['卖点']:.0f}亿)", f"{p_np['卖点']:.2f} 元")
 
-with st.expander("展开查看过去十年详细财务数据"):
-    st.dataframe(df_current_10.set_index('年份'), use_container_width=True)
+# --- 清晰列出计算所用的 10 年数据 ---
+st.markdown("#### 📋 估值所采用的具体利润明细 (亿元)")
+# 直接展示表格，不再折叠，方便随时查阅
+st.table(df_current_10.set_index('年份').style.format("{:.2f}"))
 
 st.divider()
 
 # ==========================================
-# 动态前瞻预测模块
+# 3. 动态前瞻预测模块
 # ==========================================
-st.subheader("🔮 动态滚动估值预测")
-st.markdown("自定义年份与业绩，系统将自动向后顺延计算最新的十年滚动均值。")
+st.header("🔮 动态滚动估值预测")
+st.markdown("自行输入未来年份与预测利润，系统将向后顺延，自动截取**最新10年**数据重新计算。")
 
 with st.container(border=True):
-    # 允许用户自由选择年份
+    # 允许用户自由输入任何年份
     pred_year = st.number_input("👉 设定预测年份", value=current_latest_year + 1, step=1)
     
     col_in1, col_in2 = st.columns(2)
@@ -108,18 +114,16 @@ with st.container(border=True):
     with col_in2:
         pred_np = st.number_input("预测归母净利润 (亿元)", value=float(df_current_10.iloc[0]['归母净利润(亿元)']), step=1.0)
     
-    # 将整个按钮拉宽，在手机上更好点
-    submitted = st.button("开始计算动态估值", type="primary", use_container_width=True)
+    submitted = st.button("生成十年滚动估值", type="primary", use_container_width=True)
 
 if submitted:
-    # 动态构建新十年数据表
     new_row = pd.DataFrame({
         '年份': [str(pred_year)],
         '归母净利润(亿元)': [pred_np],
         '扣非净利润(亿元)': [pred_ng]
     })
     
-    # 拼接数据，按年份倒序排序，然后只取前10个
+    # 拼接并自动截取最新的10年数据
     df_combined = pd.concat([new_row, df_current_10], ignore_index=True)
     df_combined['年份数字'] = df_combined['年份'].astype(int)
     df_new_10 = df_combined.sort_values('年份数字', ascending=False).head(10)
@@ -127,19 +131,4 @@ if submitted:
     new_start = df_new_10['年份'].min()
     new_end = df_new_10['年份'].max()
     
-    new_avg_np, new_avg_ng, _, _, new_p_np, new_p_ng = calculate_valuation(df_new_10, total_shares)
-    
-    st.success(f"✅ 计算完成！已自动截取 **{new_start} - {new_end}** 的十年数据。")
-    
-    # 对比展示最新预测结果
-    st.markdown("#### 🎯 预测结果 (对比当前财报估值)")
-    
-    # 扣非对比
-    st.markdown(f"**扣非体系** (新均值: {new_avg_ng:.2f} 亿)")
-    nc1, nc2, nc3 = st.columns(3)
-    nc1.metric("新理想买点", f"{new_p_ng['理想买点']:.2f} 元", f"{new_p_ng['理想买点'] - p_ng['理想买点']:+.2f} 元")
-    nc2.metric("新合理估值", f"{new_p_ng['合理估值']:.2f} 元", f"{new_p_ng['合理估值'] - p_ng['合理估值']:+.2f} 元")
-    nc3.metric("新一年卖点", f"{new_p_ng['一年卖点']:.2f} 元", f"{new_p_ng['一年卖点'] - p_ng['一年卖点']:+.2f} 元")
-    
-    # 归母对比
-    st.markdown(f"**归母体系** (新均值: {new_avg_np:.2f} 亿)")
+    new_avg_np, new_avg_ng, nval_np, nval_ng, new_p_np, new_p_ng = calculate_valuation(df_new_10, total_shares)
