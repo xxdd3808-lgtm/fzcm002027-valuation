@@ -79,7 +79,7 @@ st.markdown(f"> **十年平均扣非净利润：{avg_ng:.2f} 亿元**")
 c1, c2, c3 = st.columns(3)
 c1.metric(f"理想买点 (市值:{val_ng['理想买点']:.0f}亿)", f"{p_ng['理想买点']:.2f} 元")
 c2.metric(f"合理估值 (市值:{val_ng['合理估值']:.0f}亿)", f"{p_ng['合理估值']:.2f} 元")
-c3.metric(f"一年卖点 (市值:{val_ng['卖点']:.0f}亿)", f"{p_ng['卖点']:.2f} 元")
+c3.metric(f"一年内卖点 (市值:{val_ng['卖点']:.0f}亿)", f"{p_ng['卖点']:.2f} 元")
 
 st.write("") 
 
@@ -89,7 +89,7 @@ st.markdown(f"> **十年平均归母净利润：{avg_np:.2f} 亿元**")
 c4, c5, c6 = st.columns(3)
 c4.metric(f"理想买点 (市值:{val_np['理想买点']:.0f}亿)", f"{p_np['理想买点']:.2f} 元")
 c5.metric(f"合理估值 (市值:{val_np['合理估值']:.0f}亿)", f"{p_np['合理估值']:.2f} 元")
-c6.metric(f"一年卖点 (市值:{val_np['卖点']:.0f}亿)", f"{p_np['卖点']:.2f} 元")
+c6.metric(f"一年内卖点 (市值:{val_np['卖点']:.0f}亿)", f"{p_np['卖点']:.2f} 元")
 
 st.markdown("#### 📋 估值所采用的具体利润明细 (亿元)")
 st.table(df_current_10.set_index('年份').style.format("{:.2f}"))
