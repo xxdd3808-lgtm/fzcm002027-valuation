@@ -107,4 +107,58 @@ with st.form("prediction_form"):
     
     col_in1, col_in2 = st.columns(2)
     with col_in1:
-        pred_ng = st.number
+        pred_ng = st.number_input("预测扣非净利润 (亿元)", value=float(df_current_10.iloc[0]['扣非净利润(亿元)']), step=1.0)
+    with col_in2:
+        pred_np = st.number_input("预测归母净利润 (亿元)", value=float(df_current_10.iloc[0]['归母净利润(亿元)']), step=1.0)
+    
+    submitted = st.form_submit_button("生成十年滚动估值", type="primary", use_container_width=True)
+
+if submitted:
+    new_row = pd.DataFrame({
+        '年份': [str(pred_year)],
+        '归母净利润(亿元)': [pred_np],
+        '扣非净利润(亿元)': [pred_ng]
+    })
+    
+    df_combined = pd.concat([new_row, df_current_10], ignore_index=True)
+    df_combined['年份数字'] = df_combined['年份'].astype(int)
+    df_new_10 = df_combined.sort_values('年份数字', ascending=False).head(10)
+    
+    new_start = df_new_10['年份数字'].min()
+    new_end = df_new_10['年份数字'].max()
+    
+    new_avg_np, new_avg_ng, nval_np, nval_ng, new_p_np, new_p_ng = calculate_valuation(df_new_10, total_shares)
+    
+    st.success(f"✅ 滚动计算完成！当前采用的十年数据区间为：**{new_start} - {new_end}**")
+    
+    st.markdown(f"#### 🛡️ 滚动预测：扣非净利润体系 (新十年均值: {new_avg_ng:.2f} 亿)")
+    nc1, nc2, nc3 = st.columns(3)
+    nc1.metric(f"新买点 (市值:{nval_ng['理想买点']:.0f}亿)", f"{new_p_ng['理想买点']:.2f} 元", f"{new_p_ng['理想买点'] - p_ng['理想买点']:+.2f} 元")
+    nc2.metric(f"新合理 (市值:{nval_ng['合理估值']:.0f}亿)", f"{new_p_ng['合理估值']:.2f} 元", f"{new_p_ng['合理估值'] - p_ng['合理估值']:+.2f} 元")
+    nc3.metric(f"新卖点 (市值:{nval_ng['卖点']:.0f}亿)", f"{new_p_ng['卖点']:.2f} 元", f"{new_p_ng['卖点'] - p_ng['卖点']:+.2f} 元")
+    
+    st.markdown(f"#### 🟢 滚动预测：归母净利润体系 (新十年均值: {new_avg_np:.2f} 亿)")
+    nc4, nc5, nc6 = st.columns(3)
+    nc4.metric(f"新买点 (市值:{nval_np['理想买点']:.0f}亿)", f"{new_p_np['理想买点']:.2f} 元", f"{new_p_np['理想买点'] - p_np['理想买点']:+.2f} 元")
+    nc5.metric(f"新合理 (市值:{nval_np['合理估值']:.0f}亿)", f"{new_p_np['合理估值']:.2f} 元", f"{new_p_np['合理估值'] - p_np['合理估值']:+.2f} 元")
+    nc6.metric(f"新卖点 (市值:{nval_np['卖点']:.0f}亿)", f"{new_p_np['卖点']:.2f} 元", f"{new_p_np['卖点'] - p_np['卖点']:+.2f} 元")
+
+st.divider()
+
+# ==========================================
+# 4. 估值逻辑说明书 (固定在网页最下方)
+# ==========================================
+st.info("""
+### 📖 估值计算逻辑说明 (老唐席勒估值法)
+
+本工具基于长期价值投资逻辑，旨在通过**十年平均净利润**抹平宏观经济与企业自身带来的周期性波动。
+
+**具体计算步骤如下：**
+1. **取均值**：抓取公司过去完整的 10 个年度净利润数据，相加后除以 10，得出**十年平均净利润**。
+2. **合理估值（市值）** = `十年平均净利润 × 25` (即给予无风险收益率 4% 倒数的市盈率定价)。
+3. **理想买点（市值）** = `合理估值 × 0.7` (为投资留足 30% 的安全边际，在此位置买入长期胜率极高)。
+4. **一年内卖点（市值）** = `合理估值 × 1.5` (当市场情绪极度亢奋，给予极高溢价时分批卖出)。
+5. **计算盘中挂单股价**：将上述得出的市值结果，统一 **`÷ 公司最新总股本`** 即可。
+
+*(注：扣非净利润剔除了非经常性损益，更能反映企业主营业务的真实造血能力，因此本系统推荐优先参考“扣非净利润体系”。)*
+""")
