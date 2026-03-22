@@ -97,19 +97,14 @@ st.table(df_current_10.set_index('年份').style.format("{:.2f}"))
 st.divider()
 
 # ==========================================
-# 3. 动态前瞻预测模块 (已升级为 st.form 锁定状态)
+# 3. 动态前瞻预测模块
 # ==========================================
 st.header("🔮 动态滚动估值预测")
 st.markdown("自行输入未来年份与预测利润，系统将向后顺延，自动截取**最新10年**数据重新计算。")
 
-# 使用 st.form 确保输入数字时网页不会乱刷新，直到点击提交按钮
 with st.form("prediction_form"):
     pred_year = st.number_input("👉 设定预测年份", value=current_latest_year + 1, step=1)
     
     col_in1, col_in2 = st.columns(2)
     with col_in1:
-        pred_ng = st.number_input("预测扣非净利润 (亿元)", value=float(df_current_10.iloc[0]['扣非净利润(亿元)']), step=1.0)
-    with col_in2:
-        pred_np = st.number_input("预测归母净利润 (亿元)", value=float(df_current_10.iloc[0]['归母净利润(亿元)']), step=1.0)
-    
-    # 这是
+        pred_ng = st.number
