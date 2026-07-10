@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import akshare as ak
 import requests
 from datetime import datetime
 
@@ -16,11 +15,13 @@ st.set_page_config(page_title="分众传媒估值模型", page_icon="📈", layo
 def get_stock_info(symbol="002027"):
     fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
-        stock_info = ak.stock_individual_info_em(symbol=symbol)
-        total_shares_raw = stock_info[stock_info['item'] == '总股本']['value'].values[0]
-        total_shares = round(float(total_shares_raw) / 100000000, 2)
+        market_code = 1 if symbol.startswith("6") else 0
+        url = "https://push2.eastmoney.com/api/qt/stock/get"
+        params = {"fltt": "2", "invt": "2", "fields": "f84", "secid": f"{market_code}.{symbol}"}
+        r = requests.get(url, params=params, timeout=10)
+        total_shares = round(r.json()["data"]["f84"] / 100000000, 2)
     except Exception:
-        total_shares = 144.42 
+        total_shares = 144.42
         fetch_time += " (离线缓存)"
     return total_shares, fetch_time
 
@@ -133,9 +134,9 @@ with st.form("prediction_form"):
     
     col_in1, col_in2 = st.columns(2)
     with col_in1:
-        pred_ng = st.number_input("预测扣非净利润 (亿元)", value=float(df_current_10.iloc[0]['扣非净利润(亿元)']), step=1.0)
+        pred_ng = st.number_input("预测扣非净利润 (亿元)", value=round(float(df_current_10.iloc[0]['扣非净利润(亿元)']), 2), step=1.0)
     with col_in2:
-        pred_np = st.number_input("预测归母净利润 (亿元)", value=float(df_current_10.iloc[0]['归母净利润(亿元)']), step=1.0)
+        pred_np = st.number_input("预测归母净利润 (亿元)", value=round(float(df_current_10.iloc[0]['归母净利润(亿元)']), 2), step=1.0)
     
     submitted = st.form_submit_button("生成十年滚动估值", type="primary", use_container_width=True)
 
