@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import akshare as ak
+import requests
 from datetime import datetime
 
 # ==========================================
@@ -26,11 +27,22 @@ def get_stock_info(symbol="002027"):
 @st.cache_data(ttl=3600)
 def get_financial_data():
     fallback_data = pd.DataFrame({
-        '年份': ['2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016', '2015'],
-        '归母净利润(亿元)': [51.55, 48.27, 27.90, 60.63, 40.04, 18.75, 58.23, 60.05, 44.51, 33.89],
-        '扣非净利润(亿元)': [46.68, 43.74, 23.94, 54.14, 36.46, 12.82, 47.96, 48.45, 35.84, 29.83]
+        '年份': ['2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016', '2015'],
+        '归母净利润(亿元)': [29.46, 51.55, 48.27, 27.90, 60.63, 40.04, 18.75, 58.23, 60.05, 44.51, 33.89],
+        '扣非净利润(亿元)': [27.19, 46.68, 43.74, 23.94, 54.14, 36.46, 12.82, 47.96, 48.45, 35.84, 29.83]
     })
     return fallback_data
+
+@st.cache_data(ttl=60)
+def get_current_price(symbol="002027"):
+    try:
+        market_code = 1 if symbol.startswith("6") else 0
+        url = "https://push2.eastmoney.com/api/qt/stock/get"
+        params = {"fltt": "2", "invt": "2", "fields": "f43", "secid": f"{market_code}.{symbol}"}
+        r = requests.get(url, params=params, timeout=10)
+        return float(r.json()["data"]["f43"])
+    except Exception:
+        return None
 
 # ==========================================
 # 估值计算核心函数
@@ -57,12 +69,16 @@ if st.button("🔄 刷新最新财报与股本数据", use_container_width=True)
     st.rerun()
 
 total_shares, fetch_time = get_stock_info()
+current_price = get_current_price()
 df_history = get_financial_data()
 df_current_10 = df_history.head(10).copy()
 current_latest_year = int(df_current_10['年份'].max())
 current_oldest_year = int(df_current_10['年份'].min())
 
-st.caption(f"📊 当前总股本: **{total_shares} 亿股** | 数据抓取时间: {fetch_time}")
+caption_parts = [f"📊 当前总股本: **{total_shares} 亿股**", f"数据抓取时间: {fetch_time}"]
+if current_price is not None:
+    caption_parts.append(f"当前股价: **{current_price:.2f} 元**")
+st.caption(" | ".join(caption_parts))
 st.divider()
 
 # 计算基础估值
@@ -77,9 +93,9 @@ st.header(f"📈 基于 {current_oldest_year}-{current_latest_year} 财报估值
 st.markdown(f"### 🛡️ 方案一：扣非净利润体系 (推荐)")
 st.markdown(f"> **十年平均扣非净利润：{avg_ng:.2f} 亿元**")
 c1, c2, c3 = st.columns(3)
-c1.metric(f"理想买点 (市值:{val_ng['理想买点']:.0f}亿)", f"{p_ng['理想买点']:.2f} 元")
-c2.metric(f"合理估值 (市值:{val_ng['合理估值']:.0f}亿)", f"{p_ng['合理估值']:.2f} 元")
-c3.metric(f"一年内卖点 (市值:{val_ng['卖点']:.0f}亿)", f"{p_ng['卖点']:.2f} 元")
+c1.metric(f"理想买点 (市值:{val_ng['理想买点']:.0f}亿)", f"{p_ng['理想买点']:.2f} 元", delta=f"距当前 {((current_price - p_ng['理想买点']) / p_ng['理想买点'] * 100):+.1f}%" if current_price else None, delta_color="off")
+c2.metric(f"合理估值 (市值:{val_ng['合理估值']:.0f}亿)", f"{p_ng['合理估值']:.2f} 元", delta=f"距当前 {((current_price - p_ng['合理估值']) / p_ng['合理估值'] * 100):+.1f}%" if current_price else None, delta_color="off")
+c3.metric(f"一年内卖点 (市值:{val_ng['卖点']:.0f}亿)", f"{p_ng['卖点']:.2f} 元", delta=f"距当前 {((current_price - p_ng['卖点']) / p_ng['卖点'] * 100):+.1f}%" if current_price else None, delta_color="off")
 
 st.write("") 
 
@@ -87,12 +103,22 @@ st.write("")
 st.markdown(f"### 🟢 方案二：归母净利润体系")
 st.markdown(f"> **十年平均归母净利润：{avg_np:.2f} 亿元**")
 c4, c5, c6 = st.columns(3)
-c4.metric(f"理想买点 (市值:{val_np['理想买点']:.0f}亿)", f"{p_np['理想买点']:.2f} 元")
-c5.metric(f"合理估值 (市值:{val_np['合理估值']:.0f}亿)", f"{p_np['合理估值']:.2f} 元")
-c6.metric(f"一年内卖点 (市值:{val_np['卖点']:.0f}亿)", f"{p_np['卖点']:.2f} 元")
+c4.metric(f"理想买点 (市值:{val_np['理想买点']:.0f}亿)", f"{p_np['理想买点']:.2f} 元", delta=f"距当前 {((current_price - p_np['理想买点']) / p_np['理想买点'] * 100):+.1f}%" if current_price else None, delta_color="off")
+c5.metric(f"合理估值 (市值:{val_np['合理估值']:.0f}亿)", f"{p_np['合理估值']:.2f} 元", delta=f"距当前 {((current_price - p_np['合理估值']) / p_np['合理估值'] * 100):+.1f}%" if current_price else None, delta_color="off")
+c6.metric(f"一年内卖点 (市值:{val_np['卖点']:.0f}亿)", f"{p_np['卖点']:.2f} 元", delta=f"距当前 {((current_price - p_np['卖点']) / p_np['卖点'] * 100):+.1f}%" if current_price else None, delta_color="off")
 
 st.markdown("#### 📋 估值所采用的具体利润明细 (亿元)")
 st.table(df_current_10.set_index('年份').style.format("{:.2f}"))
+
+st.markdown("#### 📊 十年净利润走势")
+df_chart = df_current_10.iloc[::-1].set_index('年份')
+col_chart1, col_chart2 = st.columns(2)
+with col_chart1:
+    st.caption("归母净利润 (亿元)")
+    st.bar_chart(df_chart['归母净利润(亿元)'])
+with col_chart2:
+    st.caption("扣非净利润 (亿元)")
+    st.bar_chart(df_chart['扣非净利润(亿元)'])
 
 st.divider()
 
